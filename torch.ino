@@ -26,23 +26,28 @@
 
 // constants won't change. They're used here to set pin numbers:
 const int buttonPin = 7;     // the number of the pushbutton pin
+const int pauseButtonPin = 8;
 const int ledPin =  10;      // the number of the LED pin
 const int motorPin = 5;
 
 // variables will change:
 int buttonState = 0;         // variable for reading the pushbutton status
+int pauseButtonState = 0;
 int led = 0;
 int lastMotorWrite = 0;
 unsigned long lastMotorWriteTimestamp = 0UL;
 
-unsigned long time = 0;           // the last time the output pin was toggled
+unsigned long time = 0UL;           // the last time the output pin was toggled
+unsigned long pauseButtonTime = 0UL;
 unsigned long debounce = 200UL;
+unsigned long lastTime = 0UL;
 
-unsigned long startTime = 0;  // Az időmérés kezdőpontja
-unsigned long elapsedTime = 0;  // Az eltelt idő
-unsigned long targetTime = 3600000UL;  // Célidő (1 óra)
+unsigned long startTime = 0UL;  // Az időmérés kezdőpontja
+unsigned long elapsedTime = 0UL;  // Az eltelt idő
+unsigned long targetTime = 6000UL;  // Célidő (1 óra)
 unsigned long motorDebounce = 15000UL;
 bool timerRunning = false;
+bool isPaused = false;
 bool motorOn = false;
 
 Servo myServo;
@@ -53,26 +58,51 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   // initialize the pushbutton pin as an input:
   pinMode(buttonPin, INPUT);
+  pinMode(pauseButtonPin, INPUT);
   pinMode(motorPin, OUTPUT);
   digitalWrite(ledPin, LOW);
 }
 
 void loop() {
+  unsigned long loopTime = millis();
   // read the state of the pushbutton value:
   int newButtonState = digitalRead(buttonPin);
-  if (buttonState == LOW && newButtonState == HIGH && millis() - time > debounce) {
+  if (buttonState == LOW && newButtonState == HIGH && loopTime - time > debounce) {
       // Button was pressed
       if (!timerRunning) {
         timerRunning = true;
-        startTime = millis();
+        startTime = loopTime;
+        lastTime = loopTime;
+        elapsedTime = 0;
       } else {
         timerRunning = false;
       }
-      time = millis();
+      time = loopTime;
   }
 
-  if (timerRunning) {
-    elapsedTime = millis() - startTime;
+  // read the state of the pause button value:
+  int newPauseButtonState = digitalRead(pauseButtonPin);
+  if (timerRunning && pauseButtonState == LOW && newPauseButtonState == HIGH && loopTime - pauseButtonTime > debounce) {
+      // Button was pressed
+      if (!isPaused) {
+        isPaused = true;
+      } else {
+        isPaused = false;
+        lastTime = loopTime;
+      }
+      pauseButtonTime = loopTime;
+  }
+
+  if (timerRunning && !isPaused) {
+    
+    unsigned long timeSinceLastLoop = loopTime - lastTime;
+//    Serial.println(String(timeSinceLastLoop) + "=" + String(loopTime) + "-" + String(lastTime));
+    elapsedTime = elapsedTime + timeSinceLastLoop;
+//    Serial.println(elapsedTime);
+    lastTime = loopTime;
+ 
+    
+    
     // Serial.println(String(elapsedTime) + " " + String(targetTime) + " " + (elapsedTime >= targetTime ? "stop" : "go"));
 
     // Ha lejárt az idő
@@ -87,12 +117,12 @@ void loop() {
   }
   
   // Motor
-  if (timerRunning) {
+  if (timerRunning && !isPaused) {
     int angle = map(elapsedTime, 0, targetTime, 0, 180);
 
     // Start of the cycle
     if (elapsedTime < 200) {
-      Serial.println("Motor setup");
+//      Serial.println("Motor setup");
       myServo.attach(motorPin);
     }
 
@@ -101,24 +131,24 @@ void loop() {
     }
 
     if (elapsedTime > 1000 && elapsedTime < motorDebounce) {
-      Serial.println("Motor setup ended");
+//      Serial.println("Motor setup ended");
       myServo.detach();
     }
 
     // Turn on the motor every X seconds
-    if (millis() - lastMotorWriteTimestamp > motorDebounce && !motorOn) {
-      Serial.println("MOTOR start");
+    if (loopTime - lastMotorWriteTimestamp > motorDebounce && !motorOn) {
+//      Serial.println("MOTOR start");
       myServo.attach(motorPin);
       motorOn = true;
-    } else if (lastMotorWrite != angle && millis() - lastMotorWriteTimestamp > (motorDebounce + 100UL)) {
-      Serial.println("MOTOR " + String(angle));
-      Serial.println("TIME " + String(elapsedTime));
+    } else if (lastMotorWrite != angle && loopTime - lastMotorWriteTimestamp > (motorDebounce + 100UL)) {
+//      Serial.println("MOTOR " + String(angle));
+//      Serial.println("TIME " + String(elapsedTime));
       lastMotorWrite = angle;
       myServo.write(angle);
      
-    } else if (millis() - lastMotorWriteTimestamp > (motorDebounce + 500UL)) {
-      Serial.println("MOTOR detach");
-      lastMotorWriteTimestamp = millis();
+    } else if (loopTime - lastMotorWriteTimestamp > (motorDebounce + 500UL)) {
+//      Serial.println("MOTOR detach");
+      lastMotorWriteTimestamp = loopTime;
        myServo.detach();
        motorOn = false;
     }
@@ -127,4 +157,5 @@ void loop() {
   }
 
   buttonState = newButtonState;
+  pauseButtonState = newPauseButtonState;
 }
