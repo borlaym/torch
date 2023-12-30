@@ -27,7 +27,7 @@
 // constants won't change. They're used here to set pin numbers:
 const int buttonPin = 7;     // the number of the pushbutton pin
 const int pauseButtonPin = 8;
-const int ledPin =  10;      // the number of the LED pin
+const int ledPin =  11;      // the number of the LED pin
 const int motorPin = 5;
 
 // variables will change:
@@ -44,7 +44,7 @@ unsigned long lastTime = 0UL;
 
 unsigned long startTime = 0UL;  // Az időmérés kezdőpontja
 unsigned long elapsedTime = 0UL;  // Az eltelt idő
-unsigned long targetTime = 6000UL;  // Célidő (1 óra)
+unsigned long targetTime = 3600000UL;  // Célidő (1 óra)
 unsigned long motorDebounce = 15000UL;
 bool timerRunning = false;
 bool isPaused = false;
@@ -96,9 +96,9 @@ void loop() {
   if (timerRunning && !isPaused) {
     
     unsigned long timeSinceLastLoop = loopTime - lastTime;
-//    Serial.println(String(timeSinceLastLoop) + "=" + String(loopTime) + "-" + String(lastTime));
+    Serial.println(String(timeSinceLastLoop) + "=" + String(loopTime) + "-" + String(lastTime));
     elapsedTime = elapsedTime + timeSinceLastLoop;
-//    Serial.println(elapsedTime);
+    Serial.println(elapsedTime);
     lastTime = loopTime;
  
     
